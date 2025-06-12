@@ -596,21 +596,39 @@ def preprocess_test_audio(path, max_len=2000):
 test_audio_path = "/content/drive/MyDrive/dataset2/audio/1-E1-Major 00 (1).wav"
 test_audio = preprocess_test_audio(test_audio_path)
 
-def greedy_decode(transformer, audio_input, tokenizer, max_len=256, start_token_id=101, end_token_id=102):
+# def greedy_decode(transformer, audio_input, tokenizer, max_len=256, start_token_id=101, end_token_id=102):
+#     decoded_ids = [start_token_id]
+
+#     for _ in range(max_len):
+#         decoder_input = np.array(decoded_ids)[None, :]  # (1, seq_len)
+#         preds = transformer.predict([audio_input, decoder_input], verbose=0)
+
+#         next_id = np.argmax(preds[0, -1, :])  # Take last time-step's highest prob token
+
+#         if next_id == end_token_id:
+#             break
+
+#         decoded_ids.append(next_id)
+
+#     return decoded_ids
+
+def greedy_decode(transformer, audio_input, tokenizer, max_len=100, start_token_id=101, end_token_id=102):
     decoded_ids = [start_token_id]
-
-    for _ in range(max_len):
-        decoder_input = np.array(decoded_ids)[None, :]  # (1, seq_len)
+    for _ in range(max_len - 1):  # -1 because start_token is already present
+        decoder_input = np.array(decoded_ids)[None, :]
+        # Pad to max_len
+        if decoder_input.shape[1] < max_len:
+            decoder_input = np.pad(decoder_input, ((0, 0), (0, max_len - decoder_input.shape[1])), constant_values=0)
+        else:
+            decoder_input = decoder_input[:, :max_len]
         preds = transformer.predict([audio_input, decoder_input], verbose=0)
-
-        next_id = np.argmax(preds[0, -1, :])  # Take last time-step's highest prob token
-
+        next_id = np.argmax(preds[0, len(decoded_ids) - 1, :])
         if next_id == end_token_id:
             break
-
         decoded_ids.append(next_id)
-
     return decoded_ids
+
+
 
 # Define tokenizer special token IDs
 start_token = tokenizer.cls_token_id or 101
