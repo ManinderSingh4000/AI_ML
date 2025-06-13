@@ -596,35 +596,57 @@ encoder_input = preprocess_audio(audio_path)
 # Step 4: Inference loop (greedy decoding)
 # ---------------------------
 
-start_token = tokenizer.cls_token_id  # For BERT-like models
+from transformers import AutoTokenizer
 
-# Start decoder input (with <start> token — usually 1 or 0 depending on your tokenizer)
-decoder_input = np.array([[start_token]])  # e.g., np.array([[1]])
+# Load tokenizer and model
+tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+model = transformer  # or load_model('path/to/saved.h5', compile=False)
 
-max_output_length = 50  # set to your max decoder steps
+start_token = tokenizer.cls_token_id
+end_token = tokenizer.eos_token_id if tokenizer.eos_token_id is not None else tokenizer.sep_token_id
+
+# Prepare encoder input as usual
+encoder_input = preprocess_audio(audio_path)
+
+# Start with start_token for BERT
+decoder_input = np.array([[start_token]])
+max_output_length = 100
 decoded_tokens = []
 
-for i in range(max_output_length):
+for _ in range(max_output_length):
     predictions = model.predict([encoder_input, decoder_input], verbose=0)
     next_token = np.argmax(predictions[:, -1:, :], axis=-1)
-
-    # Append the predicted token
-    decoded_tokens.append(next_token[0, 0])
-
-
-    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-    end_token = tokenizer.eos_token_id if tokenizer.eos_token_id is not None else tokenizer.sep_token_id
-    # Stop if <end> token is reached
-    if next_token[0, 0] == end_token:
+    token_id = next_token[0, 0]
+    if token_id == end_token:
         break
-
-    # Append next_token to decoder input for next iteration
+    decoded_tokens.append(token_id)
     decoder_input = np.concatenate([decoder_input, next_token], axis=1)
 
-# ---------------------------
-# Step 5: Convert tokens to text (XML/tab)
-# ---------------------------
-# Assuming you have a tokenizer or vocabulary reverse mapping:
-output_text = ''.join([index_to_token[i] for i in decoded_tokens])
+# Convert token IDs to string using the tokenizer
+output_text = tokenizer.decode(decoded_tokens, skip_special_tokens=True)
 print("Generated Output:\n", output_text)
+
+# def generate_xml_from_audio(audio_path, model, tokenizer, max_output_length=100):
+#     encoder_input = preprocess_audio(audio_path)
+#     start_token = tokenizer.cls_token_id
+#     end_token = tokenizer.eos_token_id if tokenizer.eos_token_id is not None else tokenizer.sep_token_id
+
+#     decoder_input = np.array([[start_token]])
+#     decoded_tokens = []
+
+#     for _ in range(max_output_length):
+#         predictions = model.predict([encoder_input, decoder_input], verbose=0)
+#         next_token = np.argmax(predictions[:, -1:, :], axis=-1)
+#         token_id = next_token[0, 0]
+#         if token_id == end_token:
+#             break
+#         decoded_tokens.append(token_id)
+#         decoder_input = np.concatenate([decoder_input, next_token], axis=1)
+
+#     output_text = tokenizer.decode(decoded_tokens, skip_special_tokens=True)
+#     return output_text
+
+# # Usage:
+# output_text = generate_xml_from_audio(audio_path, model, tokenizer)
+# print("Generated Output:\n", output_text)
 
