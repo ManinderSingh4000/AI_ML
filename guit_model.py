@@ -558,6 +558,8 @@ output = transformer.predict(input_features)
 from tensorflow.keras.models import load_model
 import numpy as np
 import librosa
+from transformers import AutoTokenizer
+
 
 # ---------------------------
 # Step 1: Load the trained model
@@ -594,6 +596,8 @@ encoder_input = preprocess_audio(audio_path)
 # Step 4: Inference loop (greedy decoding)
 # ---------------------------
 
+start_token = tokenizer.cls_token_id  # For BERT-like models
+
 # Start decoder input (with <start> token — usually 1 or 0 depending on your tokenizer)
 decoder_input = np.array([[start_token]])  # e.g., np.array([[1]])
 
@@ -607,6 +611,9 @@ for i in range(max_output_length):
     # Append the predicted token
     decoded_tokens.append(next_token[0, 0])
 
+
+    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+    end_token = tokenizer.eos_token_id if tokenizer.eos_token_id is not None else tokenizer.sep_token_id
     # Stop if <end> token is reached
     if next_token[0, 0] == end_token:
         break
